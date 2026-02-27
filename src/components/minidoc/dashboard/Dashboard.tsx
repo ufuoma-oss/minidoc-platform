@@ -9,7 +9,7 @@ import AppIntegrationModal, { APPS_DATA } from './AppIntegrationModal';
 import OnboardingModal from './OnboardingModal';
 import FileUpload from './FileUpload';
 import { Tab, Message, Document, ChatSession, SettingModalType } from '@/lib/minidoc/types';
-import { getDocuments, getChats, createChat, getMessages, saveMessage, clearSession, deleteDocument, deleteChat, hasCompletedOnboarding, completeOnboarding } from '@/lib/minidoc/storage';
+import { getDocuments, getChats, createChat, getMessages, saveMessage, clearSession, deleteDocument, deleteChat, hasCompletedOnboarding, completeOnboarding, getDocumentsSync } from '@/lib/minidoc/storage';
 
 interface DashboardProps {
   onSignOut: () => void;
@@ -28,6 +28,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
   // Data State
   const [documents, setDocuments] = useState<Document[]>([]);
   const [recentChats, setRecentChats] = useState<ChatSession[]>([]);
+  
+  // Attached Documents for current chat
+  const [attachedDocIds, setAttachedDocIds] = useState<string[]>([]);
   
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -63,8 +66,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
 
   // Load Data on Mount
   useEffect(() => {
-    setDocuments(getDocuments());
+    // Load chats from localStorage
     setRecentChats(getChats());
+    
+    // Load documents from cache initially
+    setDocuments(getDocumentsSync());
+    
+    // Then fetch fresh documents from API
+    getDocuments().then(docs => {
+      setDocuments(docs);
+    });
     
     // Check if user needs onboarding
     if (!hasCompletedOnboarding()) {
@@ -97,18 +108,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
     }));
   };
 
-  const handleFileUploadComplete = (uploadedFiles: any[]) => {
-    // Add uploaded files to documents
-    const newDocs: Document[] = uploadedFiles.map(f => ({
-      id: f.id,
-      name: f.name,
-      type: f.type,
-      size: f.size,
-      uploadedAt: new Date(),
-      status: 'ready' as const
-    }));
+  // Toggle document attachment
+  const toggleDocAttachment = (docId: string) => {
+    setAttachedDocIds(prev => 
+      prev.includes(docId) 
+        ? prev.filter(id => id !== docId)
+        : [...prev, docId]
+    );
+  };
+
+  // Get attached documents
+  const attachedDocs = documents.filter(d => attachedDocIds.includes(d.id));
+
+  const handleFileUploadComplete = async (uploadedFiles: any[]) => {
+    // Refresh documents from API after upload
+    const docs = await getDocuments();
+    setDocuments(docs);
     
-    setDocuments(prev => [...prev, ...newDocs]);
+    // Auto-attach newly uploaded documents
+    const newDocIds = uploadedFiles.map(f => f.id);
+    setAttachedDocIds(prev => [...prev, ...newDocIds]);
+    
     setShowFileUpload(false);
   };
 
@@ -119,7 +139,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
       id: Date.now().toString(),
       role: 'user',
       text: inputText,
-      timestamp: new Date()
+      timestamp: new Date(),
+      attachedDocs: attachedDocIds.length > 0 ? attachedDocIds : undefined
     };
 
     let chatId = currentChatId;
@@ -136,11 +157,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
     setIsTyping(true);
 
     try {
-      // Prepare document context for the AI
-      const docContext = documents.map(d => ({
+      // Get attached documents with their content
+      const docsForChat = attachedDocs.map(d => ({
         id: d.id,
         filename: d.name,
-        mimeType: d.type,
+        mimeType: d.mimeType,
         extractedText: d.extractedText || ''
       }));
 
@@ -150,7 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: newMessage.text, 
-          documents: docContext,
+          documents: docsForChat,
           session_id: chatId
         })
       });
@@ -181,6 +202,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
   const startNewChat = () => {
     setMessages([]);
     setCurrentChatId(null);
+    setAttachedDocIds([]); // Clear attached docs for new chat
     setActiveTab('history');
   };
 
@@ -195,9 +217,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
     onSignOut();
   };
 
-  const handleDeleteDocument = (id: string) => {
-    deleteDocument(id);
-    setDocuments(getDocuments());
+  const handleDeleteDocument = async (id: string) => {
+    await deleteDocument(id);
+    const docs = await getDocuments();
+    setDocuments(docs);
+    // Remove from attached if deleted
+    setAttachedDocIds(prev => prev.filter(docId => docId !== id));
   };
 
   const connectedAppsCount = Object.values(connectedApps).filter(Boolean).length;
@@ -297,6 +322,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
           onConnectApp={handleOpenAppModal}
           onFileUpload={() => setShowFileUpload(true)}
           documents={documents}
+          attachedDocIds={attachedDocIds}
+          onToggleDocAttachment={toggleDocAttachment}
         />
       </main>
     </div>
