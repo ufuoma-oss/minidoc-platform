@@ -34,7 +34,6 @@ python-telegram-bot>=21.0
 # Automation
 apscheduler>=3.10.0
 
-# Embeddings & RAG
-sentence-transformers>=2.2.0
-pgvector>=0.2.0
+# Embeddings - using NVIDIA NIM API instead of local model
+# sentence-transformers is too heavy for Render starter plan
 numpy>=1.26.0
