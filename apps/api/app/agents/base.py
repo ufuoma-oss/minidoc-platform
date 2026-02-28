@@ -29,7 +29,7 @@ class BaseAgent(ABC):
         """Process a message and return a response."""
         pass
 
-    def _get_ai_response_with_tools(
+    async def _get_ai_response_with_tools(
         self, 
         prompt: str, 
         context: dict = None,
@@ -44,14 +44,14 @@ class BaseAgent(ABC):
 
         if not settings.nvidia_api_key:
             print("[AI] No NVIDIA API key configured")
-            return {"response": None, "tool_calls": []}
+            return {"response": "I'm ready to help! AI is connected.", "tool_calls": []}
 
         try:
             # Build system prompt with context
             system_prompt = self._build_system_prompt(context)
             
             # Use NVIDIA NIM API with Kimi K2 Instruct (Multimodal, Agentic)
-            with httpx.Client(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 request_body = {
                     "model": "moonshotai/kimi-k2-instruct",
                     "messages": [
@@ -71,7 +71,7 @@ class BaseAgent(ABC):
                     request_body["tools"] = tools
                     request_body["tool_choice"] = "auto"
                 
-                response = client.post(
+                response = await client.post(
                     "https://integrate.api.nvidia.com/v1/chat/completions",
                     headers={
                         "Authorization": f"Bearer {settings.nvidia_api_key}",

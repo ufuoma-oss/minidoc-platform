@@ -47,7 +47,7 @@ Help the user accomplish their goal. Use tools when appropriate to:
 Provide a helpful response and USE TOOLS to perform real actions."""
 
         # Get AI response with tools
-        result = self._get_ai_response_with_tools(prompt, context)
+        result = await self._get_ai_response_with_tools(prompt, context)
 
         response = result.get("response")
         tool_calls = result.get("tool_calls", [])

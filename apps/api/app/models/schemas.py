@@ -40,6 +40,7 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     user_id: Optional[str] = None
     documents: Optional[list[dict]] = None
+    history: Optional[list[dict]] = None
 
 
 class ChatResponse(BaseModel):
