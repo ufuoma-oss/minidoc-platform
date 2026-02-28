@@ -293,13 +293,20 @@ minidoc-platform/
 | Multi-Agent System | ✅ Done | 6 specialized agents |
 | VLM (Vision) | ✅ Done | Image analysis endpoint |
 | Document Attachment | ✅ Done | Attach docs to chat messages |
+| **PDF Operations** | ✅ Done | Extract text, tables, merge, split |
+| **Document Generation** | ✅ Done | Generate PDF, XLSX, DOCX, PPTX |
+| **Google Integration** | ✅ Done | Gmail, Drive, Calendar OAuth |
+| **Microsoft Integration** | ✅ Done | Outlook, OneDrive OAuth |
+| **Telegram Bot** | ✅ Done | Controller channel notifications |
+| **Task Automation** | ✅ Done | Workflow engine with triggers/actions |
+| **Citations & RAG** | ✅ Done | Vector embeddings, semantic search |
 
 ### 🚧 In Progress
 
 | Feature | Status | Details |
 |---------|--------|---------|
-| App Integrations UI | 🚧 Partial | Modal exists, connections not real |
-| Document List | 🚧 Partial | Shows in sidebar, needs more work |
+| App Integrations UI | 🚧 Partial | OAuth working, need UI polish |
+| User Authentication | 🚧 TODO | Supabase Auth to be implemented |
 
 ### ❌ Not Started
 
@@ -307,15 +314,8 @@ minidoc-platform/
 |---------|--------|---------------------|
 | User Authentication | ❌ TODO | "Secure login" |
 | Subscription/Billing | ❌ TODO | "Plans starting at $19/mo" |
-| Real App Integrations | ❌ TODO | Gmail, Drive, WhatsApp, etc. |
-| PDF Operations | ❌ TODO | Merge, split, extract text |
-| Spreadsheet Generation | ❌ TODO | Create XLSX from data |
-| Document Generation | ❌ TODO | Create PDFs, DOCX, PPTX |
-| Email Automation | ❌ TODO | "Scan my emails" |
-| Task Automation | ❌ TODO | "Add all tasks to my to-do list" |
-| WhatsApp Integration | ❌ TODO | "Reply to landlord via WhatsApp" |
-| Calendar Integration | ❌ TODO | Meeting scheduling |
-| Smart Search | ❌ TODO | Search across all sources |
+| WhatsApp Integration | ❌ TODO | Replaced with Telegram |
+| Smart Search UI | ❌ TODO | Search across all sources |
 | Usage Tracking | ❌ TODO | Track AI usage per user |
 
 ---
@@ -334,33 +334,107 @@ GET /health
 ```
 POST /api/chat
 Body: { message: string, documents?: [], session_id?: string }
-Response: { response: string, agent: string, tools_used: [] }
+Response: { response: string, agent: string, tools_used: [], citations: [] }
+
+GET /api/chat/agents
+GET /api/chat/status
+POST /api/chat/intent
 ```
 
 #### Documents
 ```
 GET /api/chat/documents?user_id=xxx
-Response: { documents: [...] }
-
 POST /api/chat/upload
-Body: FormData { file, user_id, category }
-Response: { success: bool, document: {...} }
-
-DELETE /api/chat/documents/{doc_id}?user_id=xxx
-Response: { success: bool }
+DELETE /api/chat/documents/{doc_id}
 ```
 
-#### Agents
+#### PDF Operations
 ```
-GET /api/chat/agents
-Response: { agents: [...] }
+POST /api/pdf/extract-text
+Body: { document_id: string, user_id: string }
+Response: { text: string, pages: [], page_count: int }
+
+POST /api/pdf/extract-tables
+Body: { document_id: string, user_id: string }
+Response: { tables: [], table_count: int }
+
+POST /api/pdf/merge
+Body: { document_ids: [], user_id: string }
+Response: { merged_document: {}, page_count: int }
+
+POST /api/pdf/split
+Body: { document_id: string, ranges: [], user_id: string }
+Response: { split_documents: [] }
+
+POST /api/pdf/info
+GET /api/pdf/render-page/{doc_id}
+```
+
+#### Document Generation
+```
+POST /api/documents/generate/pdf
+POST /api/documents/generate/spreadsheet
+POST /api/documents/generate/docx
+POST /api/documents/generate/pptx
+```
+
+#### Google Integrations
+```
+GET /api/integrations/google/connect
+GET /api/integrations/google/callback
+DELETE /api/integrations/google/disconnect
+GET /api/integrations/google/status
+
+GET /api/integrations/gmail/emails
+POST /api/integrations/gmail/send
+POST /api/integrations/gmail/draft
+
+GET /api/integrations/drive/files
+GET /api/integrations/drive/files/{file_id}
+
+GET /api/integrations/calendar/events
+POST /api/integrations/calendar/events
+```
+
+#### Microsoft Integrations
+```
+GET /api/integrations/microsoft/connect
+GET /api/integrations/microsoft/callback
+DELETE /api/integrations/microsoft/disconnect
+
+GET /api/integrations/outlook/emails
+POST /api/integrations/outlook/send
+
+GET /api/integrations/onedrive/files
+```
+
+#### Telegram Bot
+```
+GET /api/telegram/bot/info
+POST /api/telegram/send
+POST /api/telegram/register
+POST /api/telegram/webhook
+GET /api/telegram/webhook/set
+```
+
+#### Automations
+```
+GET /api/automations/list
+POST /api/automations
+GET /api/automations/{id}
+PUT /api/automations/{id}
+DELETE /api/automations/{id}
+POST /api/automations/{id}/run
+POST /api/automations/{id}/toggle
+GET /api/automations/{id}/runs
+GET /api/automations/templates
 ```
 
 #### VLM (Vision)
 ```
 POST /api/vlm/analyze
-Body: { image_url: string, prompt?: string }
-Response: { analysis: string }
+POST /api/vlm/ocr
+POST /api/vlm/chart
 ```
 
 ---
@@ -480,6 +554,94 @@ CREATE TABLE messages (
 
 > **IMPORTANT**: Every change pushed to this project MUST be recorded here with date, description, and affected files.
 
+### 2026-03-01 - Major Feature Implementation: Integrations, PDF Ops, Document Gen, Automation, Citations
+
+- **Added**: PDF Operations Service (`/apps/api/app/services/pdf_service.py`)
+  - Extract text from PDFs
+  - Extract tables from PDFs
+  - Merge multiple PDFs
+  - Split PDFs by page ranges
+  - Render PDF pages as images
+
+- **Added**: Document Generation Service (`/apps/api/app/services/document_service.py`)
+  - Generate PDF documents with ReportLab
+  - Generate Excel spreadsheets with openpyxl
+  - Generate Word documents with python-docx
+  - Generate PowerPoint presentations with python-pptx
+
+- **Added**: OAuth Service (`/apps/api/app/services/oauth_service.py`)
+  - Google OAuth flow
+  - Microsoft OAuth flow
+  - Token management and refresh
+
+- **Added**: Google Service (`/apps/api/app/services/google_service.py`)
+  - Gmail API (list, send, draft)
+  - Google Drive API (list, download, upload)
+  - Google Calendar API (list, create events)
+
+- **Added**: Microsoft Service (`/apps/api/app/services/microsoft_service.py`)
+  - Outlook Mail API (list, send)
+  - OneDrive API (list, download, upload)
+  - Microsoft Calendar API
+
+- **Added**: Telegram Service (`/apps/api/app/services/telegram_service.py`)
+  - Bot messaging
+  - Controller channel notifications
+  - User notification system
+
+- **Added**: Automation Service (`/apps/api/app/services/automation_service.py`)
+  - Create/update/delete automations
+  - Trigger types: schedule, email, document, webhook, manual
+  - Action types: send_email, create_document, ai_process, notify_telegram, webhook
+  - Run tracking and history
+
+- **Added**: Embedding Service (`/apps/api/app/services/embedding_service.py`)
+  - Vector embeddings via NVIDIA NIM
+  - Document chunking and indexing
+  - Semantic similarity search
+
+- **Added**: Citation Service (`/apps/api/app/services/citation_service.py`)
+  - Document context retrieval
+  - Citation extraction and formatting
+  - Response enhancement with citations
+
+- **Added**: New API Routers
+  - `/apps/api/app/routers/pdf.py` - PDF operations
+  - `/apps/api/app/routers/documents.py` - Document generation
+  - `/apps/api/app/routers/integrations.py` - Google/Microsoft OAuth
+  - `/apps/api/app/routers/telegram.py` - Telegram bot
+  - `/apps/api/app/routers/automations.py` - Task automation
+
+- **Added**: Frontend Components
+  - `/src/components/minidoc/dashboard/PdfOperationsModal.tsx`
+  - `/src/components/minidoc/dashboard/DocumentGeneratorModal.tsx`
+  - `/src/components/minidoc/dashboard/AutomationModal.tsx`
+
+- **Updated**: API Client (`/src/lib/api.ts`)
+  - Added all new endpoint functions
+  - New types for integrations, automations, etc.
+
+- **Updated**: Types (`/src/lib/minidoc/types.ts`)
+  - Added integration, automation, citation types
+
+- **Updated**: Requirements (`/apps/api/requirements.txt`)
+  - PyMuPDF, pdfplumber, pypdf for PDF operations
+  - reportlab, openpyxl, python-docx, python-pptx for document generation
+  - google-auth, google-api-python-client for Google integrations
+  - msal for Microsoft integrations
+  - python-telegram-bot for Telegram
+  - apscheduler for automation scheduling
+  - sentence-transformers, pgvector for embeddings
+
+**Files Changed:**
+- `/apps/api/requirements.txt`
+- `/apps/api/app/main.py`
+- `/apps/api/app/services/*.py` (8 new files)
+- `/apps/api/app/routers/*.py` (5 new files)
+- `/src/lib/api.ts`
+- `/src/lib/minidoc/types.ts`
+- `/src/components/minidoc/dashboard/*.tsx` (3 new files)
+
 ### 2026-02-28 - Project Documentation Created
 - **Created**: PROJECT_DOCS.md - comprehensive project documentation
 - **Purpose**: Source of truth for all future development and AI assistants
@@ -567,5 +729,5 @@ When working on this project, you MUST:
 
 ---
 
-*Last Updated: 2026-02-28*
-*Document Version: 1.1*
+*Last Updated: 2026-03-01*
+*Document Version: 2.0*

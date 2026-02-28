@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.agent_manager import agent_manager
-from app.routers import chat, vlm
+from app.routers import chat, vlm, pdf, documents, integrations, telegram, automations
 
 
 @asynccontextmanager
@@ -39,6 +39,11 @@ app.add_middleware(
 # Include routers
 app.include_router(chat.router)
 app.include_router(vlm.router)
+app.include_router(pdf.router)
+app.include_router(documents.router)
+app.include_router(integrations.router)
+app.include_router(telegram.router)
+app.include_router(automations.router)
 
 
 @app.get("/")
