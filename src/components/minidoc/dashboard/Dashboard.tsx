@@ -165,8 +165,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
         extractedText: d.extractedText || ''
       }));
 
-      // Call the API route
-      const response = await fetch('/api/chat', {
+      // Call the Python backend directly on Render
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://minidoc-api.onrender.com';
+      const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
