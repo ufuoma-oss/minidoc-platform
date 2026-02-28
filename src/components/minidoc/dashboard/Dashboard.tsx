@@ -9,7 +9,8 @@ import AppIntegrationModal, { APPS_DATA } from './AppIntegrationModal';
 import OnboardingModal from './OnboardingModal';
 import FileUpload from './FileUpload';
 import { Tab, Message, Document, ChatSession, SettingModalType } from '@/lib/minidoc/types';
-import { getDocuments, getChats, createChat, getMessages, saveMessage, clearSession, deleteDocument, deleteChat, hasCompletedOnboarding, completeOnboarding } from '@/lib/minidoc/storage';
+import { getChats, createChat, getMessages, saveMessage, clearSession, deleteChat, hasCompletedOnboarding, completeOnboarding } from '@/lib/minidoc/storage';
+import { getDocuments as getApiDocuments, deleteDocument as deleteApiDocument } from '@/lib/api';
 
 interface DashboardProps {
   onSignOut: () => void;
@@ -64,24 +65,43 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
   const [isAppModalOpen, setIsAppModalOpen] = useState(false);
   const [initialAppModalId, setInitialAppModalId] = useState<string | null>(null);
 
+  // API URL for Python backend
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://minidoc-api.onrender.com';
+
   // Load Data on Mount
   useEffect(() => {
     // Load chats from localStorage
     setRecentChats(getChats());
     
-    // Load documents from cache initially
-    setDocuments(getDocuments());
-    
-    // Then fetch fresh documents from API
-    getDocuments().then(docs => {
-      setDocuments(docs);
-    });
+    // Fetch documents from Python backend
+    fetchDocuments();
     
     // Check if user needs onboarding
     if (!hasCompletedOnboarding()) {
       setShowOnboarding(true);
     }
   }, []);
+  
+  const fetchDocuments = async () => {
+    try {
+      const result = await getApiDocuments('demo-user');
+      const apiDocs = result.documents.map((doc: any) => ({
+        id: doc.id,
+        name: doc.filename || doc.original_name,
+        type: doc.mime_type?.includes('pdf') ? 'pdf' : 
+              doc.mime_type?.includes('image') ? 'image' : 'doc',
+        size: `${(doc.size / 1024).toFixed(1)} KB`,
+        status: doc.status || 'ready',
+        date: doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'Today',
+        content: doc.url,
+        mimeType: doc.mime_type,
+        extractedText: doc.extracted_text
+      }));
+      setDocuments(apiDocs);
+    } catch (error) {
+      console.error('Failed to fetch documents:', error);
+    }
+  };
   
   const handleOnboardingComplete = () => {
     completeOnboarding();
@@ -122,8 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
 
   const handleFileUploadComplete = async (uploadedFiles: any[]) => {
     // Refresh documents from API after upload
-    const docs = await getDocuments();
-    setDocuments(docs);
+    await fetchDocuments();
     
     // Auto-attach newly uploaded documents
     const newDocIds = uploadedFiles.map(f => f.id);
@@ -165,8 +184,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
         extractedText: d.extractedText || ''
       }));
 
-      // Call the Python backend directly on Render
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://minidoc-api.onrender.com';
+      // Call the Python backend on Render
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -219,9 +237,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
   };
 
   const handleDeleteDocument = async (id: string) => {
-    await deleteDocument(id);
-    const docs = await getDocuments();
-    setDocuments(docs);
+    try {
+      await deleteApiDocument(id, 'demo-user');
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+    }
     // Remove from attached if deleted
     setAttachedDocIds(prev => prev.filter(docId => docId !== id));
   };

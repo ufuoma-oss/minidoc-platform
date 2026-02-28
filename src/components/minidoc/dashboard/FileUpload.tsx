@@ -45,15 +45,16 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, onClose }) =>
     
     setUploading(true);
     const uploaded: UploadedFile[] = [];
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://minidoc-api.onrender.com';
 
     for (const file of files) {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('userId', 'demo-user');
+        formData.append('user_id', 'demo-user');
         formData.append('category', 'general');
 
-        const response = await fetch('/api/upload', {
+        const response = await fetch(`${API_URL}/api/chat/upload`, {
           method: 'POST',
           body: formData
         });
