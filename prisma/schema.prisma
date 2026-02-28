@@ -1,0 +1,272 @@
+// MiniDoc - Comprehensive Database Schema
+// Supports: Users, Documents, Conversations, Memory, App Connections
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER MANAGEMENT
+// ============================================================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  avatar        String?
+  passwordHash  String?
+  
+  // Subscription
+  plan          String   @default("free") // free, pro, enterprise
+  credits       Int      @default(10)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastActiveAt  DateTime @default(now())
+  
+  // Relations
+  documents     Document[]
+  conversations Conversation[]
+  memories      Memory[]
+  appConnections AppConnection[]
+  tasks         Task[]
+  
+  @@map("users")
+}
+
+// ============================================================================
+// DOCUMENT MANAGEMENT (Files, PDFs, Images)
+// ============================================================================
+
+model Document {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // File info
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int      // bytes
+  path        String?  // storage path
+  
+  // Processing status
+  status      String   @default("pending") // pending, processing, ready, error
+  extractedText String? // OCR/extracted content
+  
+  // Metadata
+  category    String?  // contract, receipt, letter, resume, etc.
+  tags        String?  // JSON array of tags
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  memories    Memory[]
+  citations   Citation[]
+  
+  @@index([userId])
+  @@index([status])
+  @@map("documents")
+}
+
+// ============================================================================
+// CONVERSATIONS & MESSAGES
+// ============================================================================
+
+model Conversation {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Context
+  title       String?
+  summary     String?  // AI-generated summary
+  
+  // Metadata
+  agentUsed   String?  // which agent was primarily used
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  messages    Message[]
+  
+  @@index([userId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Content
+  role          String   // user, assistant, system
+  content       String   // message text
+  
+  // Agent info
+  agent         String?  // which agent responded
+  toolsUsed     String?  // JSON array of tools called
+  
+  // Citations
+  citations     String?  // JSON array of document IDs cited
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  
+  // Relations
+  toolCalls     ToolCall[]
+  
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// ============================================================================
+// TOOL CALLS (Tracking AI Actions)
+// ============================================================================
+
+model ToolCall {
+  id          String   @id @default(cuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  // Tool info
+  toolName    String   // browser_search, send_email, create_slide, etc.
+  arguments   String   // JSON of tool arguments
+  result      String?  // JSON of tool result
+  
+  // Status
+  status      String   @default("pending") // pending, success, error
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+  
+  @@index([messageId])
+  @@map("tool_calls")
+}
+
+// ============================================================================
+// MEMORY & RAG (Vector Embeddings)
+// ============================================================================
+
+model Memory {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Source
+  documentId  String?
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  
+  // Content
+  content     String   // The text chunk
+  embedding   String?  // Vector embedding (JSON array or binary)
+  
+  // Metadata
+  sourceType  String   // document, conversation, manual
+  metadata    String?  // JSON for additional data
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([documentId])
+  @@map("memories")
+}
+
+// ============================================================================
+// CITATIONS (Document References in Responses)
+// ============================================================================
+
+model Citation {
+  id          String   @id @default(cuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Citation info
+  referencedIn String? // message ID or context
+  snippet     String? // quoted text
+  pageNumber  Int?
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  
+  @@index([documentId])
+  @@map("citations")
+}
+
+// ============================================================================
+// APP CONNECTIONS (OAuth Tokens for Integrations)
+// ============================================================================
+
+model AppConnection {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // App info
+  appId       String   // gmail, google_drive, outlook, calendar, etc.
+  appName     String
+  
+  // OAuth tokens
+  accessToken String?
+  refreshToken String?
+  tokenExpiry DateTime?
+  
+  // Permissions
+  scopes      String?  // JSON array of granted scopes
+  
+  // Status
+  status      String   @default("active") // active, expired, revoked
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastSyncAt  DateTime?
+  
+  @@unique([userId, appId])
+  @@index([userId])
+  @@map("app_connections")
+}
+
+// ============================================================================
+// TASKS (Async Operations)
+// ============================================================================
+
+model Task {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Task info
+  type        String   // file_generation, email_send, sync, etc.
+  description String?
+  
+  // Input/Output
+  input       String   // JSON input data
+  output      String?  // JSON output/result
+  
+  // Status
+  status      String   @default("pending") // pending, processing, completed, failed
+  error       String?
+  progress    Int      @default(0) // 0-100
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  
+  @@index([userId])
+  @@index([status])
+  @@map("tasks")
+}

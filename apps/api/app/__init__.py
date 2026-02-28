@@ -1,0 +1,3 @@
+"""
+MiniDoc API - Application Package
+"""

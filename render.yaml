@@ -1,0 +1,30 @@
+# Render Blueprint for MiniDoc Backend
+# Deploy to: https://dashboard.render.com
+
+services:
+  # Web Service - Python FastAPI Backend
+  - type: web
+    name: minidoc-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    plan: free
+    region: oregon
+    branch: master
+    envVars:
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: ZAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
+    autoDeploy: true
