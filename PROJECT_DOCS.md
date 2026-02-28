@@ -480,40 +480,50 @@ CREATE TABLE messages (
 
 > **IMPORTANT**: Every change pushed to this project MUST be recorded here with date, description, and affected files.
 
-### 2025-01-XX - Initial Documentation
+### 2026-02-28 - Project Documentation Created
 - **Created**: PROJECT_DOCS.md - comprehensive project documentation
-- **Purpose**: Source of truth for all future development
+- **Purpose**: Source of truth for all future development and AI assistants
 - **Files**: `/PROJECT_DOCS.md`
+- **Commit**: fd01966
 
-### 2025-01-XX - File Upload UX Improvements
-- **Changed**: Removed modal-style file upload, now uses native file picker
-- **Changed**: Uploaded files now appear as messages in chat
-- **Changed**: Placeholder text always says "Ask anything..."
-- **Changed**: Upload icon changed back to Plus
+### 2026-02-28 - File Upload UX Improvements
+- **Changed**: Removed modal-style file upload, now uses native OS file picker
+- **Changed**: Uploaded files now appear as messages in chat (visible, not silent)
+- **Changed**: Placeholder text always says "Ask anything..." (removed attachment count)
+- **Changed**: Upload icon changed from Paperclip back to Plus
+- **Removed**: FileUpload modal component usage from Dashboard
 - **Files**: 
   - `/src/components/minidoc/dashboard/ChatView.tsx`
   - `/src/components/minidoc/dashboard/Dashboard.tsx`
 
-### 2025-01-XX - Python Backend Supabase Integration
-- **Added**: Supabase client to Python backend
-- **Added**: VLM (Vision) endpoints
-- **Fixed**: Async/await issue in base.py agent
+### 2026-02-28 - Python Backend Supabase Integration
+- **Added**: Supabase client to Python backend (`/apps/api/app/core/supabase_client.py`)
+- **Added**: VLM (Vision) endpoints for image analysis (`/apps/api/app/routers/vlm.py`)
+- **Fixed**: Async/await issue in base.py agent - changed to async def and AsyncClient
 - **Files**:
   - `/apps/api/app/core/supabase_client.py`
   - `/apps/api/app/routers/vlm.py`
   - `/apps/api/app/routers/chat.py`
   - `/apps/api/app/agents/base.py`
 
-### 2025-01-XX - Frontend Backend Migration
+### 2026-02-28 - Frontend Backend Migration
 - **Changed**: Dashboard now calls Python backend directly (not Next.js API)
-- **Removed**: Dependency on Next.js API routes for chat
+- **Removed**: Dependency on Next.js API routes for chat functionality
+- **Commit**: a8d8138
 - **Files**:
   - `/src/components/minidoc/dashboard/Dashboard.tsx`
+  - `/src/lib/api.ts`
 
-### 2025-01-XX - Initial Render Deployment
+### 2026-02-28 - Initial Render Deployment
 - **Deployed**: Python FastAPI backend to Render
-- **Configured**: Environment variables (NVIDIA_API_KEY, SUPABASE_URL, etc.)
+- **Configured**: Environment variables (NVIDIA_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY)
 - **URL**: https://minidoc-api.onrender.com
+- **Service ID**: srv-d6flpama2pns7382f2e0
+
+### 2026-02-28 - Initial Vercel Deployment
+- **Deployed**: Next.js frontend to Vercel
+- **Repository**: Connected to GitHub for auto-deploys
+- **Branch**: main
 
 ---
 
@@ -557,5 +567,5 @@ When working on this project, you MUST:
 
 ---
 
-*Last Updated: 2025-01-XX*
-*Document Version: 1.0*
+*Last Updated: 2026-02-28*
+*Document Version: 1.1*
